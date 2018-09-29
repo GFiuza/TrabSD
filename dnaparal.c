@@ -145,7 +145,7 @@ int main(int argc, char* argv[]) {
 				MPI_Bcast(query, tamQuery, MPI_CHAR, MESTRE, MPI_COMM_WORLD);
 
 				for (int j = 1; j < np; j++)
-					MPI_Send(base + ((j-1)*tamBase) + (tamQuery-1), tamBase, MPI_CHAR, j, 1, MPI_COMM_WORLD);
+					MPI_Send(base + ((j-1)*tamBase), tamBase + tamQuery - 1, MPI_CHAR, j, 1, MPI_COMM_WORLD);
 				
 
 				resultp = INFINITO;
@@ -155,10 +155,13 @@ int main(int argc, char* argv[]) {
 					fprintf(fout, "%s\n%d\n", desc_dna, result);
 					found = 1;
 				}
+				memset(base, '\0', strlen(base));
 			}
 
 			if (!found)
 				fprintf(fout, "NOT FOUND\n");
+
+			memset(query, '\0', strlen(query));
 		}
 		continua = 0;
 		MPI_Bcast(&continua, 1, MPI_INT, MESTRE, MPI_COMM_WORLD);
@@ -171,11 +174,13 @@ int main(int argc, char* argv[]) {
 			MPI_Bcast(&tamQuery, 1, MPI_INT, MESTRE, MPI_COMM_WORLD);
 			MPI_Bcast(&tamBase, 1, MPI_INT, MESTRE, MPI_COMM_WORLD);
 			MPI_Bcast(query, tamQuery, MPI_CHAR, MESTRE, MPI_COMM_WORLD);
-			MPI_Recv(base, tamBase, MPI_CHAR, MESTRE, 1, MPI_COMM_WORLD, &status);
-			resultp = bmhs(base, tamBase, query, tamQuery);
+			MPI_Recv(base, tamBase + tamQuery - 1, MPI_CHAR, MESTRE, 1, MPI_COMM_WORLD, &status);
+			resultp = bmhs(base, tamBase + tamQuery - 1, query, tamQuery);
 			if(resultp!=INFINITO)			
 				resultp += (meu_rank-1)*tamBase;
 			MPI_Reduce(&resultp, &result, 1, MPI_INT, MPI_MIN, MESTRE, MPI_COMM_WORLD);
+			memset(query, '\0', strlen(query));
+			memset(base, '\0', strlen(base));
 		}
 	}
 
