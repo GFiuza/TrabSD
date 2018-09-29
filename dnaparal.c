@@ -184,5 +184,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+	free(base);
+	free(query);
 	MPI_Finalize();
 }
