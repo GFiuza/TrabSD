@@ -3,9 +3,11 @@
 #include <string.h>
 #include <limits.h>
 #include <mpi.h>
+#include <time.h>
 
 // MAX char table (ASCII)
 #define MAX 256
+#define MAXTASKS 8192
 #define INFINITO INT_MAX
 #define MESTRE 0
 
@@ -67,15 +69,23 @@ void remove_eol(char *line) {
 
 
 int main(int argc, char* argv[]) {
-	int np,tamBase, tamQuery, meu_rank, continua, resultp, result;
+	clock_t ini, fim;
+	int np,tamBase, tamQuery, meu_rank, continua, resultp, result, namelength;
+	
 	char *base;
 	char *query;
+	char host[MPI_MAX_PROCESSOR_NAME], hostmap[MAXTASKS][MPI_MAX_PROCESSOR_NAME];
 
 	MPI_Status status;
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &meu_rank);  
-	MPI_Comm_size(MPI_COMM_WORLD,&np); 
+	MPI_Comm_size(MPI_COMM_WORLD,&np);
 
+	MPI_Get_processor_name(host, &namelength);
+	MPI_Gather(&host, MPI_MAX_PROCESSOR_NAME, MPI_CHAR, &hostmap, MPI_MAX_PROCESSOR_NAME, MPI_CHAR, 0, MPI_COMM_WORLD); 
+
+	ini = clock();
+	
 	base = (char*) malloc(sizeof(char) * 1000001);
 	if (base == NULL) {
 		perror("malloc base");
@@ -137,7 +147,7 @@ int main(int argc, char* argv[]) {
 				} while (line[0] != '>');
 				
 				tamQuery = strlen(query);
-				tamBase = (strlen(base)/(np-1)) + tamQuery-1;
+				tamBase = (strlen(base)/(np-1));
 				continua = 1;
 				MPI_Bcast(&continua, 1, MPI_INT, MESTRE, MPI_COMM_WORLD);
 				MPI_Bcast(&tamQuery, 1, MPI_INT, MESTRE, MPI_COMM_WORLD);
@@ -186,5 +196,17 @@ int main(int argc, char* argv[]) {
 
 	free(base);
 	free(query);
+	fim = clock();
+	if (meu_rank == MESTRE) {
+		FILE *ftempo;
+		double total;
+
+		total = (double)(fim-ini)/CLOCKS_PER_SEC*1000;
+		ftempo = openfile("tempo.out","a");
+		for (int i=0; i<np; i++) 
+    		fprintf(ftempo, "task %4d is on %s\n", i, hostmap[i]);
+		fprintf(ftempo, "processos = %d\ntempo = %f\n\n", np, total);
+		fclose(ftempo);
+	}
 	MPI_Finalize();
 }
