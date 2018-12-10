@@ -37,7 +37,11 @@ int bmhs(char *string, int n, char *substr, int m) {
 }
 
 FILE *fdatabase, *fquery, *fout;
-
+int min(int a, int b){
+	if (a>b)
+		return b;
+	return a;
+}
 void openfiles() {
 
 	fdatabase = fopen("dna.in", "r+");
@@ -99,7 +103,8 @@ int main(void) {
 
 	char desc_dna[100], desc_query[100];
 	char line[100];
-	int i, found, result;
+	int i, found;
+	int	result = INT_MAX;
 
 	fgets(desc_query, 100, fquery);
 	remove_eol(desc_query);
@@ -137,6 +142,8 @@ int main(void) {
 				remove_eol(line);
 				i += 80;
 			} while (line[0] != '>');
+			
+			result = INT_MAX;
 
 			#pragma omp parallel
 			{
@@ -144,17 +151,19 @@ int main(void) {
 				int id = omp_get_thread_num();
 				int len = partsize + strlen(str) - 1;
 				int pointer = id * partsize; 
-				#pragma omp reduction(min:result)
-				result = bmhs(&bases[pointer], len, str, strlen(str));
-				if (result != INT_MAX)
-					result += (id * partsize);
-				printf ("ID = %d  teve result = %d\t query (%s)\n", id, result,str);
-			}
-				//printf("RESULT = %d\tQUERY = %s", result, str);
-				if (result != INT_MAX) {
-					fprintf(fout, "%s\n%d\t\n", desc_dna, result);
-					found++;
+				int resultp = bmhs(&bases[pointer], len, str, strlen(str));
+				if (resultp != INT_MAX){
+					#pragma omp critical
+					result = min(result, resultp + (id * partsize));
+					printf ("ID = %d  teve result = %d\t query (%d)\n", id, result,partsize);
 				}
+			}
+			//printf("RESULT = %d\tQUERY = %s", result, str);
+			if (result != INT_MAX) {
+				printf ("%d\n", result);
+				fprintf(fout, "%s\n%d\t\n", desc_dna, result);
+				found++;
+			}
 			
 		}
 
